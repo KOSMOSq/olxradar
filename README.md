@@ -1,77 +1,61 @@
-![OLXRadar](https://i.imgur.com/umVlxwV.jpeg)
 # OLXRadar
-Get notified instantly of new listings on OLX.pl with this Python app that sends alerts via Telegram.
 
-## Prerequisites
+Monitors one or more OLX.pl searches (with any filters you set — location, price range, category, condition, etc.) and sends a separate Telegram message for every new listing, with the description auto-translated to Russian.
 
-Before running the app, you must have the following installed:
+Runs for free, in the cloud, on a schedule via GitHub Actions — no server or laptop needs to stay on.
 
-* Python 3.x
-* A Telegram bot (see below how to create one)
+## How a notification looks
 
-## Installation
+```
+🔍 Playstation 5
 
-1. Clone/download this repository to your local machine.
-2. Open a terminal and navigate to the project directory.
-3. Create a new virtual environment by running the following command:
-   ```
-   python3 -m venv venv
-   ```
-4. Activate the virtual environment:
-   ```
-   source venv/bin/activate
-   ```
-5. Install the required packages:
+Play station 5 slim z padem 1TB      (bold title, original language)
+💰 1 950 zł (цена окончательная / торг уместен)
+📝 Translated description...
+🔗 Link to the ad
+```
+
+## How it works
+
+1. `main.py` reads the search URLs from `target_urls.txt`.
+2. `scraper_manager.py` fetches the results (via `curl_cffi`, which mimics a real browser's TLS fingerprint so OLX's anti-bot protection doesn't block it), filters out ads OLX added from other locations once it runs out of local matches, and extracts each ad's title, price, negotiability and description.
+3. Every ad not yet seen is compared against `database.db` (a small SQLite file); new ones get a Telegram message and are recorded so they're never sent twice.
+4. On GitHub Actions, `database.db` is committed back to the repository after each run, so "already seen" state persists between runs even though every run starts on a fresh machine.
+
+## Setup
+
+### 1. Create a Telegram bot
+
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token it gives you.
+2. Send any message to your new bot (e.g. `/start`).
+3. Open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser and copy the `"chat":{"id": ...}` value — that's your chat ID.
+
+### 2. Add your search(es)
+
+Open olx.pl, search with whatever filters you want (location, price, category...), and paste the resulting URL into `target_urls.txt` — one URL per line.
+
+### 3. Run it
+
+**Option A — GitHub Actions (recommended, runs in the cloud for free):**
+
+1. Fork/push this repository to your own GitHub account.
+2. In the repo settings, go to **Settings → Secrets and variables → Actions** and add two repository secrets:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+3. That's it — `.github/workflows/olxradar.yml` runs the check every 5 minutes automatically. You can also trigger a run manually from the **Actions** tab (`Run workflow`).
+
+**Option B — run it yourself (local machine or your own server):**
+
+1. Install dependencies:
    ```
    pip install -r requirements.txt
    ```
-6. Setup your Telegram bot:
-   1. Create a new bot by talking to the [BotFather](https://t.me/BotFather).
-   2. Copy the bot token.
-   3. Send a message to your bot and get the chat ID.
-   4. Copy the chat ID.
-   5. Create a file named `.env` in the project directory.
-   4. Add the following lines to the `.env` file:
-      ```
-      TELEGRAM_BOT_TOKEN="your_token_here"
-      TELEGRAM_CHAT_ID="your_chat_id_here"
-      ```
-      [👉 detailed instructions on how to get the bot token and chat ID](https://12ft.io/proxy?q=https%3A%2F%2Fmedium.com%2Fcodex%2Fusing-python-to-send-telegram-messages-in-3-simple-steps-419a8b5e5e2)
-
-7. Add a product URL to monitor:
-   1. Search for a product on [www.olx.pl](https://www.olx.pl/).
-   2. Copy the URL of the search results page.
-   3. Add the URL to `target_urls.txt`, located in the project directory. Add one URL per line.
-
-![How to get a search url](https://i.imgur.com/9tEANnp.png)
-
-## Usage. How to schedule the app to run at fixed intervals
-
-**On Windows**
-
-Make sure you logged on as an administrator or you have the same access as an administrator, then go to:
-
-```
-Start -> Control Panel -> System and Security -> Administrative Tools -> Task Scheduler
-Action -> Create Basic Task -> Type a name and Click Next
-```    
-Follow through the wizard.
-
-
-**On Linux**
-   
-   1. Open the crontab configuration file by running the following command:
-      ```
-      crontab -e
-      ```
-   2. Add the following line to the end of the file to run the app every 30 minutes:
-      ```
-      */30 * * * * /path/to/OLXRadar/venv/bin/python /path/to/OLXRadar/main.py
-      ```
-      Replace `/path/to/OLXRadar` with the actual path to the project directory.
-
-The app will fetch the list of URLs to monitor from `target_urls.txt`, scrape new ads, and send alerts via Telegram.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+2. Create a `.env` file in the project directory:
+   ```
+   TELEGRAM_BOT_TOKEN="your_token_here"
+   TELEGRAM_CHAT_ID="your_chat_id_here"
+   ```
+3. Run `python main.py` on a schedule — e.g. Windows Task Scheduler (`Control Panel → Administrative Tools → Task Scheduler → Create Basic Task`, action: run `python main.py`), or a cron entry on Linux:
+   ```
+   */5 * * * * /path/to/olxradar/venv/bin/python /path/to/olxradar/main.py
+   ```
