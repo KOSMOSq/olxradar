@@ -160,6 +160,14 @@ class OlxScraper:
         preserving any other filters already present in it (e.g. price
         range, category, location, sorting).
 
+        Also shuffles the order of the query parameters. OLX serves search
+        pages with "Cache-Control: max-age=300" (a 5-minute CDN cache) keyed
+        on the raw query string, order included - polling on a fixed URL can
+        keep hitting the same stale cached snapshot. Reordering the same,
+        valid parameters produces a different cache key each time (a cache
+        miss), forcing a fresh fetch, without changing what OLX's backend
+        parses out of them.
+
         Args:
             target_url (str): the search URL to monitor, with or without
             its own filter query string.
@@ -171,7 +179,9 @@ class OlxScraper:
         parsed = urlparse(target_url)
         query_params = parse_qs(parsed.query)
         query_params["page"] = [str(page)]
-        new_query = urlencode(query_params, doseq=True)
+        items = list(query_params.items())
+        random.shuffle(items)
+        new_query = urlencode(items, doseq=True)
         return urlunparse(parsed._replace(query=new_query))
 
     def strip_query(self, url: str) -> str:
