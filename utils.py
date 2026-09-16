@@ -55,21 +55,15 @@ def translate_text(text: str, source_lang: str = "pl", target_lang: str = "ru") 
         return text
 
 
-def extract_search_term(url: str) -> str:
+def parse_price_value(price: str) -> int:
     """
-    Extract the search term from a given OLX.ro URL.
+    Extracts the numeric value from an OLX price string (e.g. "1 200 zł").
 
     Args:
-        url (str): A string representing the URL from which the search term is to be extracted.
+        price (str): the price text as scraped from the ad page.
 
     Returns:
-        A string representing the search term extracted,
-        or None, if no search term was found in the URL.
+        int or None: the price as an integer, or None if no digits were found.
     """
-    # In OLX.ro urls, the search term is preceded by '/q-' and followed by '/'.
-    match = re.search(r"(?<=(/q-))[\S-]+(?=/)", url, re.IGNORECASE)
-    if match:
-        query = match.group()
-        query_segments = query.split("-")
-        return " ".join(query_segments)
-    return None
+    digits = re.sub(r"[^\d]", "", price or "")
+    return int(digits) if digits else None

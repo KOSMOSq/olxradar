@@ -6,8 +6,10 @@ from multiprocessing import Pool
 from scraper_manager import OlxScraper
 from database_manager import DatabaseManager
 from notification_manager import Messenger
-from utils import BASE_DIR
+from utils import BASE_DIR, parse_price_value
 
+MIN_PRICE = 750
+MAX_PRICE = 1500
 
 scraper = OlxScraper()
 db = DatabaseManager()
@@ -96,6 +98,12 @@ def main() -> None:
         new_ads = list(filter(None, new_ads))
 
         for ad in new_ads:
+            # The target URL no longer filters by price on OLX's side (an
+            # unfiltered, newest-first query may be less affected by
+            # backend/index lag), so apply the price range ourselves.
+            price_value = parse_price_value(ad["price"])
+            if price_value is not None and not (MIN_PRICE <= price_value <= MAX_PRICE):
+                continue
             message = Messenger.generate_ad_message(ad)
             Messenger.send_telegram_message(message)
             # Avoid hitting Telegram's rate limit when several ads are found at once
