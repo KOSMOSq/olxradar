@@ -10,6 +10,7 @@ from utils import BASE_DIR, parse_price_value
 
 MIN_PRICE = 750
 MAX_PRICE = 1500
+EXCLUDED_TITLE_KEYWORDS = ["portal"]
 
 scraper = OlxScraper()
 db = DatabaseManager()
@@ -103,6 +104,9 @@ def main() -> None:
             # backend/index lag), so apply the price range ourselves.
             price_value = parse_price_value(ad["price"])
             if price_value is not None and not (MIN_PRICE <= price_value <= MAX_PRICE):
+                continue
+            title_lower = ad["title"].lower()
+            if any(keyword in title_lower for keyword in EXCLUDED_TITLE_KEYWORDS):
                 continue
             message = Messenger.generate_ad_message(ad)
             Messenger.send_telegram_message(message)
