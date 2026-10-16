@@ -8,8 +8,8 @@ from database_manager import DatabaseManager
 from notification_manager import Messenger
 from utils import BASE_DIR, parse_price_value
 
-MIN_PRICE = 750
-MAX_PRICE = 1500
+MIN_PRICE = 1500
+MAX_PRICE = 2200
 EXCLUDED_TITLE_KEYWORDS = ["portal"]
 
 scraper = OlxScraper()
