@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import random
 import logging
 import requests
@@ -22,18 +23,23 @@ def get_impersonation_target() -> str:
     return random.choice(targets)
 
 
-def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru") -> str:
+def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru",
+                   attempts: int = 3) -> str:
     """
     Translates text using Google Translate's public web endpoint (the same
     one translate.google.com itself uses), which requires no API key.
+    Retries a few times, since the shared IPs of CI runners can get
+    rate-limited by this endpoint.
 
     Args:
         text (str): text to translate.
         source_lang (str): source language code (default: auto-detect).
         target_lang (str): target language code (default: Russian).
+        attempts (int): how many times to try before giving up.
 
     Returns:
-        str: the translated text, or the original text if translation fails.
+        str or None: the translated text, or None if all attempts failed.
+        An empty input is returned unchanged.
     """
     if not text:
         return text
@@ -45,14 +51,17 @@ def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru"
         "dt": "t",
         "q": text,
     }
-    try:
-        response = requests.get(endpoint, params=params, timeout=15)
-        response.raise_for_status()
-        segments = response.json()[0]
-        return "".join(segment[0] for segment in segments if segment[0])
-    except (requests.exceptions.RequestException, ValueError, IndexError, KeyError) as error:
-        logging.error(f"Translation error: {error}")
-        return text
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.get(endpoint, params=params, timeout=15)
+            response.raise_for_status()
+            segments = response.json()[0]
+            return "".join(segment[0] for segment in segments if segment[0])
+        except (requests.exceptions.RequestException, ValueError, IndexError, KeyError) as error:
+            logging.error(f"Translation error (attempt {attempt}/{attempts}): {error}")
+            if attempt < attempts:
+                time.sleep(1.5 * attempt)
+    return None
 
 
 def parse_price_value(price: str) -> int:

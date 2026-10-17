@@ -29,7 +29,10 @@ class Messenger():
         """
         title = html.escape(ad["title"].strip())
         description = ad["description"].strip()[:150]
-        description = html.escape(translate_text(description))
+        translated = translate_text(description)
+        if translated is None:
+            translated = f"{description} (не удалось перевести)"
+        description = html.escape(translated)
         price = html.escape(ad["price"].strip())
         if ad["source"] == "vinted":
             condition = html.escape(ad["status"])
