@@ -3,17 +3,33 @@ import time
 import logging
 import logging_config
 from multiprocessing import Pool
+from urllib.parse import urlparse
 from scraper_manager import OlxScraper
+from vinted_scraper import VintedScraper
 from database_manager import DatabaseManager
 from notification_manager import Messenger
 from utils import BASE_DIR, parse_price_value
 
+# OLX only: its search URL doesn't filter by price (see main()). Vinted's
+# search URL carries its own price filter.
 MIN_PRICE = 1500
 MAX_PRICE = 2200
 EXCLUDED_TITLE_KEYWORDS = ["portal"]
 
-scraper = OlxScraper()
+SCRAPERS = {
+    "olx.pl": OlxScraper(),
+    "vinted.pl": VintedScraper(),
+}
 db = DatabaseManager()
+
+
+def get_scraper(target_url: str):
+    """
+    Returns the scraper that handles the site a URL belongs to,
+    or None if the site isn't supported.
+    """
+    domain = urlparse(target_url).netloc.removeprefix("www.")
+    return SCRAPERS.get(domain)
 
 
 def load_target_urls() -> list:
@@ -70,6 +86,10 @@ def get_new_ads_urls_for_url(target_url: str) -> list:
         List[str]: A list of URLs representing new ads retrieved from the monitored URL.
     """
 
+    scraper = get_scraper(target_url)
+    if scraper is None:
+        logging.error(f"Unsupported site in target URL: {target_url}")
+        return []
     try:
         ads_urls = scraper.scrape_ads_urls(target_url)
     except ValueError as error:
@@ -86,11 +106,22 @@ def main() -> None:
 
     target_urls = load_target_urls()
     for target_url in target_urls:
-        ads_urls = get_new_ads_urls_for_url(target_url)
+        scraper = get_scraper(target_url)
+        if scraper is None:
+            logging.error(f"Unsupported site in target URL: {target_url}")
+            continue
 
-        # Filter out the already processed ads
-        new_ads_urls = get_new_ads_urls(ads_urls)
+        # First time a site is monitored: record what is already listed
+        # without notifying, so only ads posted from now on are sent.
+        site_prefix = f"https://{scraper.netloc}/"
+        is_first_run = db.count_urls_with_prefix(site_prefix) == 0
+
+        new_ads_urls = get_new_ads_urls_for_url(target_url)
         if not new_ads_urls:
+            continue
+        if is_first_run:
+            for url in new_ads_urls:
+                db.add_url(url)
             continue
 
         # Process ads in parallel, for increased speed
@@ -99,12 +130,13 @@ def main() -> None:
         new_ads = list(filter(None, new_ads))
 
         for ad in new_ads:
-            # The target URL no longer filters by price on OLX's side (an
+            # The OLX target URL no longer filters by price on OLX's side (an
             # unfiltered, newest-first query may be less affected by
             # backend/index lag), so apply the price range ourselves.
-            price_value = parse_price_value(ad["price"])
-            if price_value is not None and not (MIN_PRICE <= price_value <= MAX_PRICE):
-                continue
+            if ad["source"] == "olx":
+                price_value = parse_price_value(ad["price"])
+                if price_value is not None and not (MIN_PRICE <= price_value <= MAX_PRICE):
+                    continue
             title_lower = ad["title"].lower()
             if any(keyword in title_lower for keyword in EXCLUDED_TITLE_KEYWORDS):
                 continue

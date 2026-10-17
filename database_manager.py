@@ -47,6 +47,27 @@ class DatabaseManager():
             return True
         return False
 
+    def count_urls_with_prefix(self, prefix: str) -> int:
+        """
+        Returns how many stored ad URLs start with the given prefix
+        (e.g. "https://www.vinted.pl/"), i.e. how many ads from one
+        site have already been seen.
+
+        Args:
+            prefix (str): the start of the URLs to count.
+
+        Returns:
+            int: the number of matching entries.
+        """
+        self.conn = sqlite3.connect(self.DB)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM ads WHERE url LIKE ?", (prefix + "%",))
+        count = self.cursor.fetchone()[0]
+        self.cursor.close()
+        self.conn.close()
+        return count
+
     def add_url(self, url: str) -> None:
         """
         Adds a new entry with the specified url to the 'ads' table.

@@ -22,14 +22,14 @@ def get_impersonation_target() -> str:
     return random.choice(targets)
 
 
-def translate_text(text: str, source_lang: str = "pl", target_lang: str = "ru") -> str:
+def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru") -> str:
     """
     Translates text using Google Translate's public web endpoint (the same
     one translate.google.com itself uses), which requires no API key.
 
     Args:
         text (str): text to translate.
-        source_lang (str): source language code (default: Polish).
+        source_lang (str): source language code (default: auto-detect).
         target_lang (str): target language code (default: Russian).
 
     Returns:

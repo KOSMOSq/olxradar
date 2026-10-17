@@ -31,13 +31,18 @@ class Messenger():
         description = ad["description"].strip()[:150]
         description = html.escape(translate_text(description))
         price = html.escape(ad["price"].strip())
-        price_status = "торг уместен" if ad["is_negotiable"] else "цена окончательная"
+        if ad["source"] == "vinted":
+            condition = html.escape(ad["status"])
+            price_status = f"Vinted, {condition}" if condition else "Vinted"
+        else:
+            price_status = "торг уместен" if ad["is_negotiable"] else "цена окончательная"
         url = ad["url"]
 
+        description_block = f"📝 {description}...\n\n" if description else ""
         return (
             f"🔍 <b>{title}</b>\n\n"
             f"💰 {price} ({price_status})\n\n"
-            f"📝 {description}...\n\n"
+            f"{description_block}"
             f"🔗 {url}"
         )
 

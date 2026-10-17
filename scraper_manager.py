@@ -282,6 +282,7 @@ class OlxScraper:
         if any(item is None for item in [title, price, description]):
             return None
         ad_data = {
+            "source": "olx",
             "title": title,
             "price": price,
             "is_negotiable": is_negotiable,
