@@ -1,6 +1,6 @@
 # OLXRadar
 
-Monitors one or more OLX.pl searches (with any filters you set — location, price range, category, condition, etc.) and sends a separate Telegram message for every new listing, with the description auto-translated to Russian.
+Monitors one or more OLX.pl and Vinted.pl searches (with any filters you set — location, price range, category, condition, etc.) and sends a separate Telegram message for every new listing, with the description auto-translated to Russian.
 
 Runs for free, in the cloud, on a schedule via GitHub Actions — no server or laptop needs to stay on.
 
@@ -17,10 +17,11 @@ Play station 5 slim z padem 1TB      (bold title, original language)
 
 ## How it works
 
-1. `main.py` reads the search URLs from `target_urls.txt`.
-2. `scraper_manager.py` fetches the results (via `curl_cffi`, which mimics a real browser's TLS fingerprint so OLX's anti-bot protection doesn't block it), filters out ads OLX added from other locations once it runs out of local matches, and extracts each ad's title, price, negotiability and description.
-3. Every ad not yet seen is compared against `database.db` (a small SQLite file); new ones get a Telegram message and are recorded so they're never sent twice.
-4. On GitHub Actions, `database.db` is committed back to the repository after each run, so "already seen" state persists between runs even though every run starts on a fresh machine.
+1. `main.py` reads the search URLs from `target_urls.txt` (one per line, OLX.pl or Vinted.pl) and picks the scraper for each site.
+2. `scraper_manager.py` (OLX) and `vinted_scraper.py` (Vinted) fetch the results via `curl_cffi`, which mimics a real browser's TLS fingerprint so the sites' anti-bot protection doesn't block it. The OLX scraper filters out ads added from other locations once OLX runs out of local matches. Each ad's title, price, condition/negotiability and description are extracted.
+3. Every ad not yet seen is compared against `database.db` (a small SQLite file); new ones get a Telegram message and are recorded so they're never sent twice. The first time a site is monitored, the ads already listed are recorded silently, so only ads posted afterwards are sent.
+4. OLX searches don't filter by price on OLX's side; the price range is set by `MIN_PRICE` / `MAX_PRICE` in `main.py`. Vinted searches carry their own price filter in the URL. Titles containing a word from `EXCLUDED_TITLE_KEYWORDS` (e.g. "portal") are skipped.
+5. On GitHub Actions, `database.db` is committed back to the repository after each run, so "already seen" state persists between runs even though every run starts on a fresh machine.
 
 ## Setup
 
