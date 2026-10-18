@@ -64,6 +64,28 @@ def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru"
     return None
 
 
+def extract_ad_id(url: str) -> tuple:
+    """
+    Extracts the site-specific ad ID from an ad URL. Both OLX and Vinted put
+    the ad title in the URL, which changes whenever the seller edits the
+    title, so the ID is the only stable way to recognize the same ad.
+
+    Args:
+        url (str): the ad URL.
+
+    Returns:
+        tuple or None: ("vinted" | "olx", id), or None if the URL isn't
+        a recognized ad URL.
+    """
+    match = re.search(r"/items/(\d+)", url)
+    if match:
+        return ("vinted", match.group(1))
+    match = re.search(r"-ID([A-Za-z0-9]+)\.html", url)
+    if match:
+        return ("olx", match.group(1))
+    return None
+
+
 def parse_price_value(price: str) -> int:
     """
     Extracts the numeric value from an OLX price string (e.g. "1 200 zł").

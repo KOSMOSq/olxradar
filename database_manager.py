@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from utils import BASE_DIR
+from utils import BASE_DIR, extract_ad_id
 
 
 class DatabaseManager():
@@ -25,20 +25,34 @@ class DatabaseManager():
 
     def url_exists(self, url: str) -> bool:
         """
-        Returns True if an entry with the specified url exists
-        in the database, otherwise False.
+        Returns True if this ad has already been seen, otherwise False.
+        Ads are matched by their site ID rather than the full URL, because
+        the URL contains the title and changes when the seller edits it
+        (which would make an old ad look new).
 
         Args:
             url (str): the url to check.
 
         Returns:
-            bool: True if an entry with the specified url exists in
-            the database, otherwise False.
+            bool: True if an entry for the same ad exists in the database,
+            otherwise False.
         """
+        ad_id = extract_ad_id(url)
+        if ad_id is None:
+            sql_command = "SELECT url FROM ads WHERE url = ?"
+            params = (url,)
+        else:
+            kind, value = ad_id
+            # GLOB, unlike LIKE, is case-sensitive (OLX IDs mix cases)
+            if kind == "vinted":
+                sql_command = "SELECT url FROM ads WHERE url GLOB ? OR url GLOB ?"
+                params = (f"*/items/{value}-*", f"*/items/{value}")
+            else:
+                sql_command = "SELECT url FROM ads WHERE url GLOB ?"
+                params = (f"*-ID{value}.html",)
         self.conn = sqlite3.connect(self.DB)
         self.cursor = self.conn.cursor()
-        sql_command = "SELECT url FROM ads WHERE url = ?"
-        self.cursor.execute(sql_command, (url,))
+        self.cursor.execute(sql_command, params)
         result = self.cursor.fetchone()
         self.cursor.close()
         self.conn.commit()
