@@ -1,6 +1,5 @@
 import os
 import re
-import time
 import random
 import logging
 import requests
@@ -23,44 +22,62 @@ def get_impersonation_target() -> str:
     return random.choice(targets)
 
 
-def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru",
-                   attempts: int = 3) -> str:
+def _translate_google(text: str, source_lang: str, target_lang: str, client: str) -> str:
+    """Translates via Google's public web endpoint with the given client id."""
+    response = requests.get(
+        "https://translate.googleapis.com/translate_a/single",
+        params={"client": client, "sl": source_lang, "tl": target_lang,
+                "dt": "t", "q": text},
+        timeout=15)
+    response.raise_for_status()
+    segments = response.json()[0]
+    return "".join(segment[0] for segment in segments if segment[0])
+
+
+def _translate_mymemory(text: str, source_lang: str, target_lang: str) -> str:
+    """Translates via the free MyMemory API (a different service, as a fallback)."""
+    source = "Autodetect" if source_lang == "auto" else source_lang
+    response = requests.get(
+        "https://api.mymemory.translated.net/get",
+        params={"q": text, "langpair": f"{source}|{target_lang}"},
+        timeout=15)
+    response.raise_for_status()
+    data = response.json()
+    if str(data.get("responseStatus")) != "200":
+        raise ValueError(f"MyMemory error: {data.get('responseDetails')}")
+    return data["responseData"]["translatedText"]
+
+
+def translate_text(text: str, source_lang: str = "auto", target_lang: str = "ru") -> str:
     """
-    Translates text using Google Translate's public web endpoint (the same
-    one translate.google.com itself uses), which requires no API key.
-    Retries a few times, since the shared IPs of CI runners can get
-    rate-limited by this endpoint.
+    Translates text without an API key. Google's free endpoint rate-limits
+    (HTTP 429), especially on the shared IPs of CI runners, so several
+    providers are tried in turn: Google with two different client ids (each
+    has its own quota), then MyMemory.
 
     Args:
         text (str): text to translate.
         source_lang (str): source language code (default: auto-detect).
         target_lang (str): target language code (default: Russian).
-        attempts (int): how many times to try before giving up.
 
     Returns:
-        str or None: the translated text, or None if all attempts failed.
+        str or None: the translated text, or None if every provider failed.
         An empty input is returned unchanged.
     """
     if not text:
         return text
-    endpoint = "https://translate.googleapis.com/translate_a/single"
-    params = {
-        "client": "gtx",
-        "sl": source_lang,
-        "tl": target_lang,
-        "dt": "t",
-        "q": text,
-    }
-    for attempt in range(1, attempts + 1):
+    providers = [
+        ("google/gtx", lambda: _translate_google(text, source_lang, target_lang, "gtx")),
+        ("google/dict-chrome-ex", lambda: _translate_google(text, source_lang, target_lang, "dict-chrome-ex")),
+        ("mymemory", lambda: _translate_mymemory(text, source_lang, target_lang)),
+    ]
+    for name, translate in providers:
         try:
-            response = requests.get(endpoint, params=params, timeout=15)
-            response.raise_for_status()
-            segments = response.json()[0]
-            return "".join(segment[0] for segment in segments if segment[0])
+            result = translate()
+            if result:
+                return result
         except (requests.exceptions.RequestException, ValueError, IndexError, KeyError) as error:
-            logging.error(f"Translation error (attempt {attempt}/{attempts}): {error}")
-            if attempt < attempts:
-                time.sleep(1.5 * attempt)
+            logging.error(f"Translation error ({name}): {error}")
     return None
 
 
