@@ -13,7 +13,7 @@ from utils import BASE_DIR, parse_price_value
 # OLX only: its search URL doesn't filter by price (see main()). Vinted's
 # search URL carries its own price filter.
 MIN_PRICE = 1500
-MAX_PRICE = 2200
+MAX_PRICE = 1900
 EXCLUDED_TITLE_KEYWORDS = ["portal"]
 
 SCRAPERS = {
