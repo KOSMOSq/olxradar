@@ -1,2 +1,2 @@
 https://www.olx.pl/elektronika/gry-konsole/konsole/playstation/poznan/q-playstation-5/?search%5Border%5D=created_at:desc&search%5Bfilter_enum_state%5D%5B0%5D=new&search%5Bfilter_enum_state%5D%5B1%5D=used&search%5Bfilter_enum_version%5D%5B0%5D=playstation5
-https://www.vinted.pl/catalog?search_text=Playstation%205&catalog[]=3025&price_from=1700.00&price_to=1900.00&currency=PLN&video_game_platform_ids[]=1281&brand_ids[]=113926&brand_ids[]=272284&order=newest_first
+https://www.vinted.pl/catalog?search_text=Playstation%205&catalog[]=3025&price_from=1700.00&price_to=2100.00&currency=PLN&video_game_platform_ids[]=1281&brand_ids[]=113926&brand_ids[]=272284&order=newest_first
